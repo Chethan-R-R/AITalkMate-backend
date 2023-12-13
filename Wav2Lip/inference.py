@@ -165,8 +165,7 @@ class Wav2LipInference:
             np.copyto(sharpened, image, where=low_contrast_mask)
         return sharpened
 
-    def inference(self,face,wav,file_id, outfile='results/result_voice.mp4'):
-        self.args['outfile'] = outfile
+    def inference(self,face,file_id):
         self.args['face'] = face
         # self.args['audio'] = audio_file
         if not os.path.isfile(self.args['face']):
@@ -211,7 +210,7 @@ class Wav2LipInference:
         #     subprocess.call(command, shell=True)
         #     self.args['audio'] = 'temp/temp.wav'
 
-        # wav = audio.load_wav(self.args['audio'], 16000)
+        wav = audio.load_wav('temp/'+file_id+'.wav', 16000)
         mel = audio.melspectrogram(wav)
         print(mel.shape)
 
@@ -264,7 +263,7 @@ class Wav2LipInference:
 
         out.release()
 
-        command = 'ffmpeg -y -i {} -i {} -strict -2 -q:v 0 {}'.format(wav, 'temp/'+file_id+'.avi','results/'+file_id+'.mp4')
+        command = 'ffmpeg -y -i {} -i {} -strict -2 -q:v 0 {}'.format('temp/'+file_id+'.wav', 'temp/'+file_id+'.avi','results/'+file_id+'.mp4')
 
         subprocess.call(command, shell=platform.system() != 'Windows')
 
