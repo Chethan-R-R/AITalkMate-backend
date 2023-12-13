@@ -19,7 +19,7 @@ from .Modules.diffusion.sampler import KDiffusion, LogNormalDistribution
 from .Modules.diffusion.modules import Transformer1d, StyleTransformer1d
 from .Modules.diffusion.diffusion import AudioDiffusionConditional
 
-from Modules.discriminators import MultiPeriodDiscriminator, MultiResSpecDiscriminator, WavLMDiscriminator
+from .Modules.discriminators import MultiPeriodDiscriminator, MultiResSpecDiscriminator, WavLMDiscriminator
 
 from munch import Munch
 import yaml
