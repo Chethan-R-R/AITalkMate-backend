@@ -1,22 +1,37 @@
 import nltk
 nltk.download('punkt')
 import torch
+
+import random
+
+import numpy as np
+
+# load packages
+import time
+import random
+import yaml
+from munch import Munch
+import numpy as np
+import torch
+from torch import nn
+import torch.nn.functional as F
 import torchaudio
 import librosa
-from nltk.tokenize import word_tokenize
-from .models import *
-from .Utils import *
-from .text_utils import TextCleaner
-from .Modules.diffusion.sampler import DiffusionSampler, ADPM2Sampler, KarrasSchedule
-from .Utils.PLBERT.util import load_plbert
 import phonemizer
+from nltk.tokenize import word_tokenize
 import IPython.display as ipd
+from models import *
+from utils import *
+from text_utils import TextCleaner
+from Utils.PLBERT.util import load_plbert
+from Modules.diffusion.sampler import DiffusionSampler, ADPM2Sampler, KarrasSchedule
 
 class StyleTTS:
     def __init__(self):
         torch.manual_seed(0)
         torch.backends.cudnn.benchmark = False
         torch.backends.cudnn.deterministic = True
+        random.seed(0)
 
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.text_cleaner = TextCleaner()

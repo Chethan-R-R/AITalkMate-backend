@@ -3,7 +3,10 @@ from threading import Thread
 from transformers import AutoTokenizer, pipeline, logging, TextIteratorStreamer
 from auto_gptq import AutoGPTQForCausalLM
 import emoji
-from StyleTTS2.inference import tts
+# from StyleTTS2.inference import tts
+import sys
+sys.path.append('./StyleTTS2')
+from StyleTTS2 import tts
 
 class ChatGenerator:
     def __init__(self,model_name_or_path="TheBloke/Llama-2-7b-Chat-GPTQ", model_basename="model", use_triton=False):
