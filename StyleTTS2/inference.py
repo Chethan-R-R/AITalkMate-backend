@@ -25,7 +25,7 @@ from utils import *
 from text_utils import TextCleaner
 from Utils.PLBERT.util import load_plbert
 from Modules.diffusion.sampler import DiffusionSampler, ADPM2Sampler, KarrasSchedule
-from Wav2Lip import lipSync
+from Wav2Lip.inference import lipSync
 
 class StyleTTS:
     def __init__(self):
@@ -173,10 +173,10 @@ class StyleTTS:
 
 styletts_obj = StyleTTS()
 
-def tts(text):
+def tts(text,file_id):
     wav = styletts_obj.inference(text, alpha=0.0, beta=1.111, diffusion_steps=15, embedding_scale=0.99)
     display(ipd.Audio(wav, rate=24000, normalize=False))
-    lipSync.inference(face="/content/sample_data/avatarframe.png",wav= wav)
+    lipSync.inference(face="/content/sample_data/avatarframe.jpg",wav= wav,file_id=file_id)
 
 
 

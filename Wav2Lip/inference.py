@@ -165,7 +165,7 @@ class Wav2LipInference:
             np.copyto(sharpened, image, where=low_contrast_mask)
         return sharpened
 
-    def inference(self,face,wav, outfile='results/result_voice.mp4'):
+    def inference(self,face,wav,file_id, outfile='results/result_voice.mp4'):
         self.args['outfile'] = outfile
         self.args['face'] = face
         # self.args['audio'] = audio_file
@@ -245,7 +245,7 @@ class Wav2LipInference:
                 frame_h, frame_w = full_frames[0].shape[:-1]
                 y1, y2, x1, x2 = coords[0]
                 half = (y2-y1)//2
-                out = cv2.VideoWriter('temp/result.avi', cv2.VideoWriter_fourcc(*'XVID'), fps, (x2-x1,half), isColor=True)
+                out = cv2.VideoWriter('temp/'+file_id+'.avi', cv2.VideoWriter_fourcc(*'XVID'), fps, (x2-x1,half), isColor=True)
 
 
             img_batch = torch.FloatTensor(np.transpose(img_batch, (0, 3, 1, 2))).to(self.device)
@@ -264,7 +264,7 @@ class Wav2LipInference:
 
         out.release()
 
-        command = 'ffmpeg -y -i {} -i {} -strict -2 -q:v 0 {}'.format(self.args['audio'], 'temp/result.avi', self.args['outfile'])
+        command = 'ffmpeg -y -i {} -i {} -strict -2 -q:v 0 {}'.format(wav, 'temp/'+file_id+'.avi','results/'+file_id+'.avi')
 
         subprocess.call(command, shell=platform.system() != 'Windows')
 

@@ -43,6 +43,7 @@ class ChatGenerator:
         generated_text = ""
         temp = ""
         i = 0
+        file_id = 0
         with ThreadPoolExecutor() as executor:
             for new_text in self.streamer:
                 new_text = new_text.strip()
@@ -57,7 +58,8 @@ class ChatGenerator:
                 new_text = emoji.replace_emoji(new_text, replace='')
                 temp += " " + new_text
                 if temp[-1] == '.' or temp[-1] == '?' or temp[-1] == '!':
-                    executor.submit(tts, temp)
+                    executor.submit(tts, temp, file_id)
+                    file_id+=1
                     temp = ""
 
         print(generated_text)
