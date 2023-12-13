@@ -10,7 +10,7 @@ from .text_utils import TextCleaner
 from .Modules.diffusion.sampler import DiffusionSampler, ADPM2Sampler, KarrasSchedule
 from .Utils.PLBERT.util import load_plbert
 import phonemizer
-
+import IPython.display as ipd
 
 class StyleTTS:
     def __init__(self):
