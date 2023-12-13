@@ -27,7 +27,7 @@ class StyleTTS:
         self.mean, self.std = -4, 4
 
         # Load config and models
-        config = yaml.safe_load(open("Models/LibriTTS/config.yml"))
+        config = yaml.safe_load(open("./Models/LibriTTS/config.yml"))
         ASR_config = config.get('ASR_config', False)
         ASR_path = config.get('ASR_path', False)
         F0_path = config.get('F0_path', False)
