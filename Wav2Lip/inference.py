@@ -7,7 +7,7 @@ import torch
 from tqdm import tqdm
 import audio
 import face_detection
-from models import Wav2Lip
+from Wav2Lip.models import Wav2Lip
 import platform
 
 class Wav2LipInference:
@@ -165,10 +165,10 @@ class Wav2LipInference:
             np.copyto(sharpened, image, where=low_contrast_mask)
         return sharpened
 
-    def inference(self,face,audio_file, outfile='results/result_voice.mp4'):
+    def inference(self,face,wav, outfile='results/result_voice.mp4'):
         self.args['outfile'] = outfile
         self.args['face'] = face
-        self.args['audio'] = audio_file
+        # self.args['audio'] = audio_file
         if not os.path.isfile(self.args['face']):
             raise ValueError('--face argument must be a valid path to video/image file')
 
@@ -205,13 +205,13 @@ class Wav2LipInference:
 
         print("Number of frames available for inference: " + str(len(full_frames)))
 
-        if not self.args['audio'].endswith('.wav'):
-            print('Extracting raw audio...')
-            command = 'ffmpeg -y -i "{}" -acodec pcm_s16le -ar 16000 -ac 1 -strict -2 {}'.format(self.args['audio'], 'temp/temp.wav')
-            subprocess.call(command, shell=True)
-            self.args['audio'] = 'temp/temp.wav'
+        # if not self.args['audio'].endswith('.wav'):
+        #     print('Extracting raw audio...')
+        #     command = 'ffmpeg -y -i "{}" -acodec pcm_s16le -ar 16000 -ac 1 -strict -2 {}'.format(self.args['audio'], 'temp/temp.wav')
+        #     subprocess.call(command, shell=True)
+        #     self.args['audio'] = 'temp/temp.wav'
 
-        wav = audio.load_wav(self.args['audio'], 16000)
+        # wav = audio.load_wav(self.args['audio'], 16000)
         mel = audio.melspectrogram(wav)
         print(mel.shape)
 
