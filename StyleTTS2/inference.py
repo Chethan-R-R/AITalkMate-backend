@@ -10,6 +10,8 @@ from .text_utils import TextCleaner
 from .Modules.diffusion.sampler import DiffusionSampler, ADPM2Sampler, KarrasSchedule
 from .Utils.PLBERT.util import load_plbert
 import phonemizer
+from munch import Munch
+
 
 
 class StyleTTS:
