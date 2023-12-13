@@ -25,11 +25,10 @@ from utils import *
 from text_utils import TextCleaner
 from Utils.PLBERT.util import load_plbert
 from Modules.diffusion.sampler import DiffusionSampler, ADPM2Sampler, KarrasSchedule
-from Wav2Lip.inference import Wav2LipInference
+from Wav2Lip import lipSync
 
 class StyleTTS:
     def __init__(self):
-        self.lipSync = Wav2LipInference(checkpoint_path = "checkpoints/wav2lip_gan.pth")
         torch.manual_seed(0)
         torch.backends.cudnn.benchmark = False
         torch.backends.cudnn.deterministic = True
@@ -171,10 +170,13 @@ class StyleTTS:
             out = self.model.decoder(asr, F0_pred, N_pred, ref.squeeze().unsqueeze(0))
 
         return out.squeeze().cpu().numpy()[..., :-50]  # weird pulse at the end of the model, need to be fixed later
-    def tts(self,text):
-        wav = self.inference(text, alpha=0.0, beta=1.111, diffusion_steps=15, embedding_scale=0.99)
-        self.lipSync.inference(face="/content/sample_data/avatarframe.png",wav= wav)
-        
+
+styletts_obj = StyleTTS()
+
+def tts(text):
+    wav = styletts_obj.inference(text, alpha=0.0, beta=1.111, diffusion_steps=15, embedding_scale=0.99)
+    display(ipd.Audio(wav, rate=24000, normalize=False))
+    lipSync.inference(face="/content/sample_data/avatarframe.png",wav= wav)
 
 
 
