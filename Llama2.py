@@ -58,7 +58,7 @@ class ChatGenerator:
                 new_text = emoji.replace_emoji(new_text, replace='')
                 temp += " " + new_text
                 if temp[-1] == '.' or temp[-1] == '?' or temp[-1] == '!':
-                    executor.submit(tts, temp, file_id)
+                    executor.submit(tts, temp, str(file_id))
                     file_id+=1
                     temp = ""
 
