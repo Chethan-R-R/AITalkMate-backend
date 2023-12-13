@@ -6,7 +6,7 @@ import emoji
 # from StyleTTS2.inference import tts
 import sys
 sys.path.append('./StyleTTS2')
-from StyleTTS2 import StyleTTS
+from StyleTTS2.inference import StyleTTS
 
 class ChatGenerator:
     def __init__(self,model_name_or_path="TheBloke/Llama-2-7b-Chat-GPTQ", model_basename="model", use_triton=False):

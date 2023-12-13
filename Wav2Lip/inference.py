@@ -1,269 +1,178 @@
-from os import path
-import numpy as np
-import cv2
-import os
-import subprocess
+import nltk
+nltk.download('punkt')
 import torch
-from tqdm import tqdm
-import audio
-import face_detection
-from Wav2Lip.models import Wav2Lip
-import platform
 
-class Wav2LipInference:
-    def __init__(self, checkpoint_path, static=False, fps=90.0,
-                 face_det_batch_size=16, wav2lip_batch_size=128, resize_factor=2, crop=[0, -1, 0, -1],
-                 box=[-1, -1, -1, -1], rotate=False, nosmooth=False):
-        self.args = {
-            'checkpoint_path': checkpoint_path,
-            'static': static,
-            'fps': fps,
-            'face_det_batch_size': face_det_batch_size,
-            'wav2lip_batch_size': wav2lip_batch_size,
-            'resize_factor': resize_factor,
-            'crop': crop,
-            'box': box,
-            'rotate': rotate,
-            'nosmooth': nosmooth,
-            'img_size': 96,
-        }
+import random
+
+import numpy as np
+
+# load packages
+import time
+import random
+import yaml
+from munch import Munch
+import numpy as np
+import torch
+from torch import nn
+import torch.nn.functional as F
+import torchaudio
+import librosa
+import phonemizer
+from nltk.tokenize import word_tokenize
+import IPython.display as ipd
+from models import *
+from utils import *
+from text_utils import TextCleaner
+from Utils.PLBERT.util import load_plbert
+from Modules.diffusion.sampler import DiffusionSampler, ADPM2Sampler, KarrasSchedule
+from Wav2Lip.inference import Wav2LipInference
+
+class StyleTTS:
+    def __init__(self):
+        self.lipSync = Wav2LipInference(checkpoint_path = "checkpoints/wav2lip_gan.pth")
+        torch.manual_seed(0)
+        torch.backends.cudnn.benchmark = False
+        torch.backends.cudnn.deterministic = True
+        random.seed(0)
 
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        print('Using {} for inference.'.format(self.device))
+        self.text_cleaner = TextCleaner()
 
-        self.model = self.load_model(checkpoint_path)
-        self.detector = face_detection.FaceAlignment(face_detection.LandmarksType._2D,
-                                                flip_input=False, device=self.device)
+        # Load models and other necessary components
+        self.to_mel = torchaudio.transforms.MelSpectrogram(
+            n_mels=80, n_fft=2048, win_length=1200, hop_length=300)
+        self.mean, self.std = -4, 4
 
-    def load_model(self, path):
-        model = Wav2Lip()
-        print("Load checkpoint from: {}".format(path))
-        checkpoint = self._load(path)
-        s = checkpoint["state_dict"]
-        new_s = {}
-        for k, v in s.items():
-            new_s[k.replace('module.', '')] = v
-        model.load_state_dict(new_s)
+        # Load config and models
+        config = yaml.safe_load(open("Models/LibriTTS/config.yml"))
+        ASR_config = config.get('ASR_config', False)
+        ASR_path = config.get('ASR_path', False)
+        F0_path = config.get('F0_path', False)
+        BERT_path = config.get('PLBERT_dir', False)
 
-        model = model.to(self.device)
-        return model.eval()
+        self.text_aligner = load_ASR_models(ASR_path, ASR_config)
+        self.pitch_extractor = load_F0_models(F0_path)
+        self.plbert = load_plbert(BERT_path)
 
-    def _load(self, checkpoint_path):
-        if self.device == 'cuda':
-            checkpoint = torch.load(checkpoint_path)
-        else:
-            checkpoint = torch.load(checkpoint_path, map_location=lambda storage, loc: storage)
-        return checkpoint
+        self.model_params = recursive_munch(config['model_params'])
+        self.model = build_model(self.model_params, self.text_aligner, self.pitch_extractor, self.plbert)
 
-    def face_detect(self, images):
-        batch_size = self.args['face_det_batch_size']
+        _ = [self.model[key].eval() for key in self.model]
+        _ = [self.model[key].to(self.device) for key in self.model]
 
-        while 1:
-            predictions = []
-            try:
-                for i in tqdm(range(0, len(images), batch_size)):
-                    predictions.extend(self.detector.get_detections_for_batch(np.array(images[i:i + batch_size])))
-            except RuntimeError:
-                if batch_size == 1:
-                    raise RuntimeError(
-                        'Image too big to run face detection on GPU. Please use the --resize_factor argument')
-                batch_size //= 2
-                print('Recovering from OOM error; New batch size: {}'.format(batch_size))
-                continue
-            break
+        params_whole = torch.load("Models/LibriTTS/epochs_2nd_00020.pth", map_location='cpu')
+        params = params_whole['net']
 
-        results = []
-        for rect, image in zip(predictions, images):
-            if rect is None:
-                cv2.imwrite('temp/faulty_frame.jpg', image)  # check this frame where the face was not detected.
-                raise ValueError('Face not detected! Ensure the video contains a face in all the frames.')
-            y1 = rect[1]
-            y2 = rect[3]
-            x1 = rect[0]
-            x2 = rect[2]
-            h = (y2 - y1)//12
-            w = (x2-x1)//15
-            y1 = y1+h
-            y2 = y2+h//2
-            x1 = x1-w
-            x2 = x2+w
-            results.append([x1, y1, x2, y2])
-
-        boxes = np.array(results)
-        if not self.args['nosmooth']:
-            boxes = self.get_smoothened_boxes(boxes, T=5)
-        results = [[image[y1: y2, x1:x2], (y1, y2, x1, x2)] for image, (x1, y1, x2, y2) in zip(images, boxes)]
-
-        # del self.detector
-        return results
-
-    def get_smoothened_boxes(self, boxes, T):
-        for i in range(len(boxes)):
-            if i + T > len(boxes):
-                window = boxes[len(boxes) - T:]
-            else:
-                window = boxes[i: i + T]
-            boxes[i] = np.mean(window, axis=0)
-        return boxes
-
-    def datagen(self, frames, mels):
-        img_batch, mel_batch, frame_batch, coords_batch = [], [], [], []
-
-        if self.args['box'][0] == -1:
-            if not self.args['static']:
-                face_det_results = self.face_detect(frames)  # BGR2RGB for CNN face detection
-            else:
-                face_det_results = self.face_detect([frames[0]])
-        else:
-            print('Using the specified bounding box instead of face detection...')
-            y1, y2, x1, x2 = self.args['box']
-            face_det_results = [[f[y1: y2, x1:x2], (y1, y2, x1, x2)] for f in frames]
-
-        for i, m in enumerate(mels):
-            idx = 0 if self.args['static'] else i % len(frames)
-            frame_to_save = frames[idx].copy()
-            face, coords = face_det_results[idx].copy()
-            face = cv2.resize(face, (self.args['img_size'], self.args['img_size']))
-            img_batch.append(face)
-            mel_batch.append(m)
-            frame_batch.append(frame_to_save)
-            coords_batch.append(coords)
-
-            if len(img_batch) >= self.args['wav2lip_batch_size']:
-                img_batch, mel_batch = np.asarray(img_batch), np.asarray(mel_batch)
-
-                img_masked = img_batch.copy()
-                img_masked[:, self.args['img_size'] // 2:] = 0
-
-                img_batch = np.concatenate((img_masked, img_batch), axis=3) / 255.
-                mel_batch = np.reshape(mel_batch,
-                                      [len(mel_batch), mel_batch.shape[1], mel_batch.shape[2], 1])
-
-                yield img_batch, mel_batch, frame_batch, coords_batch
-                img_batch, mel_batch, frame_batch, coords_batch = [], [], [], []
-
-        if len(img_batch) > 0:
-            img_batch, mel_batch = np.asarray(img_batch), np.asarray(mel_batch)
-
-            img_masked = img_batch.copy()
-            img_masked[:, self.args['img_size'] // 2:] = 0
-
-            img_batch = np.concatenate((img_masked, img_batch), axis=3) / 255.
-            mel_batch = np.reshape(mel_batch, [len(mel_batch), mel_batch.shape[1], mel_batch.shape[2], 1])
-
-            yield img_batch, mel_batch, frame_batch, coords_batch
-
-    def sharpen_image(image, kernel_size=(5, 5), sigma=0.6, amount=1.5, threshold=0):
-        """Return a sharpened version of the image, using an unsharp mask."""
-        blurred = cv2.GaussianBlur(image, kernel_size, sigma)
-        sharpened = float(amount + 1) * image - float(amount) * blurred
-        sharpened = np.maximum(sharpened, np.zeros(sharpened.shape))
-        sharpened = np.minimum(sharpened, 255 * np.ones(sharpened.shape))
-        # sharpened = sharpened.round().astype(np.uint8)
-        if threshold > 0:
-            low_contrast_mask = np.absolute(image - blurred) < threshold
-            np.copyto(sharpened, image, where=low_contrast_mask)
-        return sharpened
-
-    def inference(self,face,wav, outfile='results/result_voice.mp4'):
-        self.args['outfile'] = outfile
-        self.args['face'] = face
-        # self.args['audio'] = audio_file
-        if not os.path.isfile(self.args['face']):
-            raise ValueError('--face argument must be a valid path to video/image file')
-
-        elif self.args['face'].split('.')[1] in ['jpg', 'png', 'jpeg']:
-            full_frames = [cv2.imread(self.args['face'])]
-            fps = self.args['fps']
-
-        else:
-            video_stream = cv2.VideoCapture(self.args['face'])
-            fps = video_stream.get(cv2.CAP_PROP_FPS)
-
-            print('Reading video frames...')
-
-            full_frames = []
-            while 1:
-                still_reading, frame = video_stream.read()
-                if not still_reading:
-                    video_stream.release()
-                    break
-                if self.args['resize_factor'] > 1:
-                    frame = cv2.resize(frame, (frame.shape[1] // self.args['resize_factor'],
-                                               frame.shape[0] // self.args['resize_factor']))
-
-                if self.args['rotate']:
-                    frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
-
-                y1, y2, x1, x2 = self.args['crop']
-                if x2 == -1: x2 = frame.shape[1]
-                if y2 == -1: y2 = frame.shape[0]
-
-                frame = frame[y1:y2, x1:x2]
-
-                full_frames.append(frame)
-
-        print("Number of frames available for inference: " + str(len(full_frames)))
-
-        # if not self.args['audio'].endswith('.wav'):
-        #     print('Extracting raw audio...')
-        #     command = 'ffmpeg -y -i "{}" -acodec pcm_s16le -ar 16000 -ac 1 -strict -2 {}'.format(self.args['audio'], 'temp/temp.wav')
-        #     subprocess.call(command, shell=True)
-        #     self.args['audio'] = 'temp/temp.wav'
-
-        # wav = audio.load_wav(self.args['audio'], 16000)
-        mel = audio.melspectrogram(wav)
-        print(mel.shape)
-
-        if np.isnan(mel.reshape(-1)).sum() > 0:
-            raise ValueError('Mel contains nan! Using a TTS voice? Add a small epsilon noise to the wav file and try again')
-
-        mel_chunks = []
-        mel_idx_multiplier = 80. / fps
-        i = 0
-        while 1:
-            start_idx = int(i * mel_idx_multiplier)
-            if start_idx + 16 > len(mel[0]):
-                mel_chunks.append(mel[:, len(mel[0]) - 16:])
-                break
-            mel_chunks.append(mel[:, start_idx: start_idx + 16])
-            i += 1
-
-        print("Length of mel chunks: {}".format(len(mel_chunks)))
-
-        full_frames = full_frames[:len(mel_chunks)]
-
-        batch_size = self.args['wav2lip_batch_size']
-        gen = self.datagen(full_frames.copy(), mel_chunks)
-
-        for i, (img_batch, mel_batch, frames, coords) in enumerate(tqdm(gen,
-                                                                        total=int(np.ceil(
-                                                                            float(len(mel_chunks)) / batch_size)))):
-            if i == 0:
-                print("Model loaded")
-
-                frame_h, frame_w = full_frames[0].shape[:-1]
-                y1, y2, x1, x2 = coords[0]
-                half = (y2-y1)//2
-                out = cv2.VideoWriter('temp/result.avi', cv2.VideoWriter_fourcc(*'XVID'), fps, (x2-x1,half), isColor=True)
+        for key in self.model:
+            if key in params:
+                try:
+                    self.model[key].load_state_dict(params[key])
+                except:
+                    from collections import OrderedDict
+                    state_dict = params[key]
+                    new_state_dict = OrderedDict()
+                    for k, v in state_dict.items():
+                        name = k[7:]  # remove `module.`
+                        new_state_dict[name] = v
+                    self.model[key].load_state_dict(new_state_dict, strict=False)
+        self.sampler = DiffusionSampler(
+            self.model.diffusion.diffusion,
+            sampler=ADPM2Sampler(),
+            sigma_schedule=KarrasSchedule(sigma_min=0.0001, sigma_max=3.0, rho=9.0),
+            clamp=False
+        )
+        self.global_phonemizer = phonemizer.backend.EspeakBackend(language='en-us', preserve_punctuation=True,  with_stress=True)
+        self.ref_s = self.compute_style('voice_sample.mp3')
 
 
-            img_batch = torch.FloatTensor(np.transpose(img_batch, (0, 3, 1, 2))).to(self.device)
-            mel_batch = torch.FloatTensor(np.transpose(mel_batch, (0, 3, 1, 2))).to(self.device)
+    def length_to_mask(self, lengths):
+        mask = torch.arange(lengths.max()).unsqueeze(0).expand(lengths.shape[0], -1).type_as(lengths)
+        mask = torch.gt(mask + 1, lengths.unsqueeze(1))
+        return mask
 
-            with torch.no_grad():
-                pred = self.model(mel_batch, img_batch)
+    def preprocess(self, wave):
+        wave_tensor = torch.from_numpy(wave).float()
+        mel_tensor = self.to_mel(wave_tensor)
+        mel_tensor = (torch.log(1e-5 + mel_tensor.unsqueeze(0)) - self.mean) / self.std
+        return mel_tensor
 
-            pred = pred.cpu().numpy().transpose(0, 2, 3, 1) * 255.
+    def compute_style(self, path):
+        wave, sr = librosa.load(path, sr=24000)
+        audio, index = librosa.effects.trim(wave, top_db=30)
+        if sr != 24000:
+            audio = librosa.resample(audio, sr, 24000)
+        mel_tensor = self.preprocess(audio).to(self.device)
 
-            for p, f, c in zip(pred, frames, coords):
-                p = self.sharpen_image(p)
-                p = cv2.resize(p.astype(np.uint8),(x2-x1,y2-y1))
-                p = p[(y2-y1)-half:,]
-                out.write(p)
+        with torch.no_grad():
+            ref_s = self.model.style_encoder(mel_tensor.unsqueeze(1))
+            ref_p = self.model.predictor_encoder(mel_tensor.unsqueeze(1))
 
-        out.release()
+        return torch.cat([ref_s, ref_p], dim=1)
 
-        command = 'ffmpeg -y -i {} -i {} -strict -2 -q:v 0 {}'.format(self.args['audio'], 'temp/result.avi', self.args['outfile'])
+    def inference(self, text, alpha=0.3, beta=0.7, diffusion_steps=5, embedding_scale=1):
+        text = text.strip()
+        ps = self.global_phonemizer.phonemize([text])
+        ps = word_tokenize(ps[0])
+        ps = ' '.join(ps)
+        tokens = self.text_cleaner(ps)
+        tokens.insert(0, 0)
+        tokens = torch.LongTensor(tokens).to(self.device).unsqueeze(0)
 
-        subprocess.call(command, shell=platform.system() != 'Windows')
+        with torch.no_grad():
+            input_lengths = torch.LongTensor([tokens.shape[-1]]).to(self.device)
+            text_mask = self.length_to_mask(input_lengths).to(self.device)
+
+            t_en = self.model.text_encoder(tokens, input_lengths, text_mask)
+            bert_dur = self.model.bert(tokens, attention_mask=(~text_mask).int())
+            d_en = self.model.bert_encoder(bert_dur).transpose(-1, -2)
+
+            s_pred = self.sampler(noise=torch.randn((1, 256)).unsqueeze(1).to(self.device),
+                                  embedding=bert_dur,
+                                  embedding_scale=embedding_scale,
+                                  features=self.ref_s,
+                                  num_steps=diffusion_steps).squeeze(1)
+
+            s = s_pred[:, 128:]
+            ref = s_pred[:, :128]
+
+            ref = alpha * ref + (1 - alpha) * self.ref_s[:, :128]
+            s = beta * s + (1 - beta) * self.ref_s[:, 128:]
+
+            d = self.model.predictor.text_encoder(d_en, s, input_lengths, text_mask)
+
+            x, _ = self.model.predictor.lstm(d)
+            duration = self.model.predictor.duration_proj(x)
+
+            duration = torch.sigmoid(duration).sum(axis=-1)
+            pred_dur = torch.round(duration.squeeze()).clamp(min=1)
+
+            pred_aln_trg = torch.zeros(input_lengths, int(pred_dur.sum().data))
+            c_frame = 0
+            for i in range(pred_aln_trg.size(0)):
+                pred_aln_trg[i, c_frame:c_frame + int(pred_dur[i].data)] = 1
+                c_frame += int(pred_dur[i].data)
+
+            en = (d.transpose(-1, -2) @ pred_aln_trg.unsqueeze(0).to(self.device))
+            if self.model_params.decoder.type == "hifigan":
+                asr_new = torch.zeros_like(en)
+                asr_new[:, :, 0] = en[:, :, 0]
+                asr_new[:, :, 1:] = en[:, :, 0:-1]
+                en = asr_new
+
+            F0_pred, N_pred = self.model.predictor.F0Ntrain(en, s)
+
+            asr = (t_en @ pred_aln_trg.unsqueeze(0).to(self.device))
+            if self.model_params.decoder.type == "hifigan":
+                asr_new = torch.zeros_like(asr)
+                asr_new[:, :, 0] = asr[:, :, 0]
+                asr_new[:, :, 1:] = asr[:, :, 0:-1]
+                asr = asr_new
+
+            out = self.model.decoder(asr, F0_pred, N_pred, ref.squeeze().unsqueeze(0))
+
+        return out.squeeze().cpu().numpy()[..., :-50]  # weird pulse at the end of the model, need to be fixed later
+    def tts(self,text):
+        wav = self.inference(text, alpha=0.0, beta=1.111, diffusion_steps=15, embedding_scale=0.99)
+        self.lipSync.inference(face="/content/sample_data/avatarframe.png",wav= wav)
+
+
