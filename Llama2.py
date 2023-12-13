@@ -3,6 +3,7 @@ from threading import Thread
 from transformers import AutoTokenizer, pipeline, logging, TextIteratorStreamer
 from auto_gptq import AutoGPTQForCausalLM
 import emoji
+from StyleTTS2.inference import StyleTTS
 
 class ChatGenerator:
     def __init__(self, model_name_or_path, model_basename, use_triton=False):
@@ -29,6 +30,7 @@ class ChatGenerator:
             top_p=0.95,
             repetition_penalty=1.15
         )
+        self.StyleTTS = StyleTTS()
 
     def generate(self, user_message, model_reply, prompt):
         system_message = "I know you are AI model"
@@ -53,7 +55,7 @@ class ChatGenerator:
                 new_text = emoji.replace_emoji(new_text, replace='')
                 temp += " " + new_text
                 if temp[-1] == '.' or temp[-1] == '?' or temp[-1] == '!':
-                    executor.submit(tts, temp)
+                    executor.submit(StyleTTS.tts, temp)
                     temp = ""
 
         print(generated_text)
