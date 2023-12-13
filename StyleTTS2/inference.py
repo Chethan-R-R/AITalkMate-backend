@@ -4,11 +4,11 @@ import torch
 import torchaudio
 import librosa
 from nltk.tokenize import word_tokenize
-from models import *
-from Utils import *
-from text_Utils import TextCleaner
-from Modules.diffusion.sampler import DiffusionSampler, ADPM2Sampler, KarrasSchedule
-from Utils.PLBERT.util import load_plbert
+from .models import *
+from .Utils import *
+from .text_utils import TextCleaner
+from .Modules.diffusion.sampler import DiffusionSampler, ADPM2Sampler, KarrasSchedule
+from .Utils.PLBERT.util import load_plbert
 import phonemizer
 
 
