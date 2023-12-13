@@ -10,8 +10,6 @@ from .text_utils import TextCleaner
 from .Modules.diffusion.sampler import DiffusionSampler, ADPM2Sampler, KarrasSchedule
 from .Utils.PLBERT.util import load_plbert
 import phonemizer
-from munch import Munch
-import os
 
 
 class StyleTTS:
@@ -29,7 +27,7 @@ class StyleTTS:
         self.mean, self.std = -4, 4
 
         # Load config and models
-        config = yaml.safe_load(open("StyleTTS2/Models/LibriTTS/config.yml"))
+        config = yaml.safe_load(open("Models/LibriTTS/config.yml"))
         ASR_config = config.get('ASR_config', False)
         ASR_path = config.get('ASR_path', False)
         F0_path = config.get('F0_path', False)
@@ -157,6 +155,9 @@ class StyleTTS:
 
         return out.squeeze().cpu().numpy()[..., :-50]  # weird pulse at the end of the model, need to be fixed later
 
-    def tts(self, text):
-        wav = self.inference(text, alpha=0, beta=1.225, diffusion_steps=15, embedding_scale=0.99)
-        display(ipd.Audio(wav, rate=24000, normalize=False))
+StyleTTS_Obj = StyleTTS()
+
+def tts(text):
+    wav = StyleTTS_Obj.inference(text, alpha=0, beta=1.225, diffusion_steps=15, embedding_scale=0.99)
+    display(ipd.Audio(wav, rate=24000, normalize=False))
+
