@@ -58,7 +58,7 @@ class ChatGenerator:
                 new_text = emoji.replace_emoji(new_text, replace='')
                 temp += " " + new_text
                 if temp[-1] == '.' or temp[-1] == '?' or temp[-1] == '!':
-                    executor.submit(styleTTS.tts, temp)
+                    executor.submit(self.styleTTS.tts, temp)
                     temp = ""
 
         print(generated_text)
