@@ -6,7 +6,7 @@ import emoji
 from StyleTTS2.inference import tts
 
 class ChatGenerator:
-    def __init__(self, model_name_or_path, model_basename, use_triton=False):
+    def __init__(self,model_name_or_path="TheBloke/Llama-2-7b-Chat-GPTQ", model_basename="model", use_triton=False):
         self.tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, use_fast=True)
         self.streamer = TextIteratorStreamer(self.tokenizer)
         self.model = AutoGPTQForCausalLM.from_quantized(
@@ -30,7 +30,6 @@ class ChatGenerator:
             top_p=0.95,
             repetition_penalty=1.15
         )
-        self.StyleTTS = StyleTTS()
 
     def generate(self, user_message, model_reply, prompt):
         system_message = "I know you are AI model"
