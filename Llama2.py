@@ -6,7 +6,7 @@ import emoji
 # from StyleTTS2.inference import tts
 import sys
 sys.path.append('./StyleTTS2')
-from StyleTTS2 import tts
+from StyleTTS2 import StyleTTS
 
 class ChatGenerator:
     def __init__(self,model_name_or_path="TheBloke/Llama-2-7b-Chat-GPTQ", model_basename="model", use_triton=False):
@@ -33,6 +33,7 @@ class ChatGenerator:
             top_p=0.95,
             repetition_penalty=1.15
         )
+        self.styleTTS = StyleTTS()
 
     def generate(self, user_message, model_reply, prompt):
         system_message = "I know you are AI model"
@@ -57,7 +58,7 @@ class ChatGenerator:
                 new_text = emoji.replace_emoji(new_text, replace='')
                 temp += " " + new_text
                 if temp[-1] == '.' or temp[-1] == '?' or temp[-1] == '!':
-                    executor.submit(tts, temp)
+                    executor.submit(styleTTS.tts, temp)
                     temp = ""
 
         print(generated_text)

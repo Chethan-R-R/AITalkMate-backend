@@ -169,10 +169,10 @@ class StyleTTS:
             out = self.model.decoder(asr, F0_pred, N_pred, ref.squeeze().unsqueeze(0))
 
         return out.squeeze().cpu().numpy()[..., :-50]  # weird pulse at the end of the model, need to be fixed later
+    def tts(self,text):
+        wav = self.inference(text, alpha=0.0, beta=1.111, diffusion_steps=15, embedding_scale=0.99)
+        display(ipd.Audio(wav, rate=24000, normalize=False))
 
-StyleTTS_Obj = StyleTTS()
 
-def tts(text):
-    wav = StyleTTS_Obj.inference(text, alpha=0, beta=1.225, diffusion_steps=15, embedding_scale=0.99)
-    display(ipd.Audio(wav, rate=24000, normalize=False))
+
 
