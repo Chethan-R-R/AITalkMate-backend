@@ -264,7 +264,7 @@ class Wav2LipInference:
 
         out.release()
 
-        command = 'ffmpeg -y -i {} -i {} -strict -2 -q:v 0 {}'.format(wav, 'temp/'+file_id+'.avi','results/'+file_id+'.avi')
+        command = 'ffmpeg -y -i {} -i {} -strict -2 -q:v 0 {}'.format(wav, 'temp/'+file_id+'.avi','results/'+file_id+'.mp4')
 
         subprocess.call(command, shell=platform.system() != 'Windows')
 
