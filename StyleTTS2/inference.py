@@ -26,6 +26,7 @@ from text_utils import TextCleaner
 from Utils.PLBERT.util import load_plbert
 from Modules.diffusion.sampler import DiffusionSampler, ADPM2Sampler, KarrasSchedule
 from Wav2Lip.inference import lipSync
+import audio
 
 class StyleTTS:
     def __init__(self):
