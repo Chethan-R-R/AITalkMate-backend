@@ -21,9 +21,9 @@ tqdm
 typing-extensions
 git+https://github.com/resemble-ai/monotonic_align.git
 ffmpeg-python
-youtube-dl
 numpy
 opencv-contrib-python
 opencv-python
 torchvision
 numba
+librosa==0.9.1

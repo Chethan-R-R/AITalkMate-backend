@@ -1,6 +1,8 @@
 #!/bin/bash
 pip install -r requirements.txt
 sudo apt-get install espeak-ng
+pip install -q youtube-dl
+
 # Clone StyleTTS2-LibriTTS repository with Git LFS
 git lfs clone https://huggingface.co/yl4579/StyleTTS2-LibriTTS
 
