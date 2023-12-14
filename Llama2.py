@@ -33,7 +33,6 @@ class ChatGenerator:
             top_p=0.95,
             repetition_penalty=1.15
         )
-    
     def generate(self, user_message, model_reply, prompt):
         system_message = "I know you are AI model"
         prompt_template = f'''<s>[INST] <<SYS>>\n{system_message}\n<</SYS>>\n\n{user_message} [/INST] {model_reply}</s><s>[INST] {prompt} [/INST]'''
@@ -62,6 +61,4 @@ class ChatGenerator:
                     file_id+=1
                     temp = ""
 
-        print(generated_text)
-        model_reply = generated_text
-        user_message = prompt
+        return generated_text

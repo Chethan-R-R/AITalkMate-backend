@@ -11,7 +11,7 @@ from Wav2Lip.models import Wav2Lip
 import platform
 
 class Wav2LipInference:
-    def __init__(self, checkpoint_path, static=False, fps=90.0,
+    def __init__(self, checkpoint_path, static=False, fps=35.0,
                  face_det_batch_size=16, wav2lip_batch_size=128, resize_factor=2, crop=[0, -1, 0, -1],
                  box=[-1, -1, -1, -1], rotate=False, nosmooth=False):
         self.args = {
