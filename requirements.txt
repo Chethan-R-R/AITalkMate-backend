@@ -20,10 +20,3 @@ einops-exts
 tqdm
 typing-extensions
 git+https://github.com/resemble-ai/monotonic_align.git
-ffmpeg-python
-numpy
-opencv-contrib-python
-opencv-python
-torchvision
-numba
-librosa==0.9.1

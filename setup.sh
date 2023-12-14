@@ -17,3 +17,10 @@ pip install https://raw.githubusercontent.com/AwaleSajil/ghc/master/ghc-1.0-py3-
 
 # Download s3fd.pth for face detection
 wget "https://www.adrianbulat.com/downloads/python-fan/s3fd-619a316812.pth" -O "/content/AITalkMateBackend/face_detection/detection/sfd/s3fd.pth"
+pip install ffmpeg-python
+pip install numpy
+pip install opencv-contrib-python
+pip install opencv-python
+pip install torchvision
+pip install numba
+pip install librosa==0.9.1
