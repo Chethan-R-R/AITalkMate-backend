@@ -20,7 +20,6 @@ einops-exts
 tqdm
 typing-extensions
 git+https://github.com/resemble-ai/monotonic_align.git
-espeak-ng
 ffmpeg-python
 youtube-dl
 numpy
