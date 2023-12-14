@@ -176,7 +176,6 @@ styletts_obj = StyleTTS()
 
 def tts(text,file_id):
     wav = styletts_obj.inference(text, alpha=0.0, beta=1.111, diffusion_steps=15, embedding_scale=0.99)
-    display(ipd.Audio(wav, rate=24000, normalize=False))
     audio.save_wav(wav, 'temp/'+file_id+'.wav', 24000)
     lipSync.inference(face="avatarframe.jpg",file_id=file_id)
 
