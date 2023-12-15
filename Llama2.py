@@ -37,7 +37,7 @@ pipe = pipeline(
     repetition_penalty=1.15)
 
 def generate(user_message, model_reply, prompt):
-    system_message = "I know you are AI model"
+    system_message = "I know you are AI model but while talking to me talk like a sweet friendly english mate susan. I am here to learn english converation make me talk more. please don't generate long responses, only short and sweet responses. Involve me in coversation with you. Figure out by your self what to talk and ask questions"
     prompt_template = f'''<s>[INST] <<SYS>>\n{system_message}\n<</SYS>>\n\n{user_message} [/INST] {model_reply}</s><s>[INST] {prompt} [/INST]'''
     generation_kwargs = dict(text_inputs=prompt_template)
     thread = Thread(target=pipe, kwargs=generation_kwargs)
