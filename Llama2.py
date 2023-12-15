@@ -36,18 +36,18 @@ pipe = pipeline(
     top_p=0.95,
     repetition_penalty=1.15)
 
-def generate(self, user_message, model_reply, prompt):
+def generate(user_message, model_reply, prompt):
     system_message = "I know you are AI model"
     prompt_template = f'''<s>[INST] <<SYS>>\n{system_message}\n<</SYS>>\n\n{user_message} [/INST] {model_reply}</s><s>[INST] {prompt} [/INST]'''
     generation_kwargs = dict(text_inputs=prompt_template)
-    thread = Thread(target=self.pipe, kwargs=generation_kwargs)
+    thread = Thread(target=pipe, kwargs=generation_kwargs)
     thread.start()
     generated_text = ""
     temp = ""
     i = 0
     file_id = 0
     with ThreadPoolExecutor() as executor:
-        for new_text in self.streamer:
+        for new_text in streamer:
             new_text = new_text.strip()
             i += 1
             if i < 3:
