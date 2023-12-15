@@ -11,9 +11,9 @@ from lip_models import Wav2Lip
 import platform
 
 class Wav2LipInference:
-    def __init__(self, checkpoint_path="checkpoints/wav2lip_gan.pth",face = "avatarframe.jpg", static=False, fps=25.0,
+    def __init__(self, checkpoint_path="checkpoints/wav2lip_gan.pth",face = "avatar.png", static=False, fps=25.0,
                  face_det_batch_size=16, wav2lip_batch_size=128, resize_factor=1, crop=[0, -1, 0, -1],
-                 box=[-1, -1, -1, -1], rotate=False, nosmooth=False):
+                 box=[-1, -1, -1, -1], rotate=False):
         self.args = {
             'checkpoint_path': checkpoint_path,
             'face':[cv2.imread(face)],
@@ -25,7 +25,6 @@ class Wav2LipInference:
             'crop': crop,
             'box': box,
             'rotate': rotate,
-            'nosmooth': nosmooth,
             'img_size': 96,
         }
 
@@ -33,8 +32,6 @@ class Wav2LipInference:
         print('Using {} for inference.'.format(self.device))
 
         self.model = self.load_model(checkpoint_path)
-        self.detector = face_detection.FaceAlignment(face_detection.LandmarksType._2D,
-                                                flip_input=False, device=self.device)
 
     def load_model(self, path):
         model = Wav2Lip()
@@ -56,79 +53,15 @@ class Wav2LipInference:
             checkpoint = torch.load(checkpoint_path, map_location=lambda storage, loc: storage)
         return checkpoint
 
-    def face_detect(self, images):
-        batch_size = self.args['face_det_batch_size']
-
-        while 1:
-            predictions = []
-            try:
-                for i in tqdm(range(0, len(images), batch_size)):
-                    predictions.extend(self.detector.get_detections_for_batch(np.array(images[i:i + batch_size])))
-            except RuntimeError:
-                if batch_size == 1:
-                    raise RuntimeError(
-                        'Image too big to run face detection on GPU. Please use the --resize_factor argument')
-                batch_size //= 2
-                print('Recovering from OOM error; New batch size: {}'.format(batch_size))
-                continue
-            break
-
-        results = []
-        for rect, image in zip(predictions, images):
-            if rect is None:
-                cv2.imwrite('temp/faulty_frame.jpg', image)  # check this frame where the face was not detected.
-                raise ValueError('Face not detected! Ensure the video contains a face in all the frames.')
-            y1 = rect[1]
-            y2 = rect[3]
-            x1 = rect[0]
-            x2 = rect[2]
-            h = (y2 - y1)//12
-            w = (x2-x1)//15
-            y1 = y1+h
-            y2 = y2+h//2
-            x1 = x1-w
-            x2 = x2+w
-            results.append([x1, y1, x2, y2])
-
-        boxes = np.array(results)
-        if not self.args['nosmooth']:
-            boxes = self.get_smoothened_boxes(boxes, T=5)
-        results = [[image[y1: y2, x1:x2], (y1, y2, x1, x2)] for image, (x1, y1, x2, y2) in zip(images, boxes)]
-
-        # del self.detector
-        return results
-
-    def get_smoothened_boxes(self, boxes, T):
-        for i in range(len(boxes)):
-            if i + T > len(boxes):
-                window = boxes[len(boxes) - T:]
-            else:
-                window = boxes[i: i + T]
-            boxes[i] = np.mean(window, axis=0)
-        return boxes
-
     def datagen(self, frames, mels):
-        img_batch, mel_batch, frame_batch, coords_batch = [], [], [], []
+        img_batch, mel_batch = [], []
 
-        if self.args['box'][0] == -1:
-            if not self.args['static']:
-                face_det_results = self.face_detect(frames)  # BGR2RGB for CNN face detection
-            else:
-                face_det_results = self.face_detect([frames[0]])
-        else:
-            print('Using the specified bounding box instead of face detection...')
-            y1, y2, x1, x2 = self.args['box']
-            face_det_results = [[f[y1: y2, x1:x2], (y1, y2, x1, x2)] for f in frames]
+        face = frames[0]
 
         for i, m in enumerate(mels):
-            idx = 0 if self.args['static'] else i % len(frames)
-            frame_to_save = frames[idx].copy()
-            face, coords = face_det_results[idx].copy()
             face = cv2.resize(face, (self.args['img_size'], self.args['img_size']))
             img_batch.append(face)
             mel_batch.append(m)
-            frame_batch.append(frame_to_save)
-            coords_batch.append(coords)
 
             if len(img_batch) >= self.args['wav2lip_batch_size']:
                 img_batch, mel_batch = np.asarray(img_batch), np.asarray(mel_batch)
@@ -140,8 +73,8 @@ class Wav2LipInference:
                 mel_batch = np.reshape(mel_batch,
                                       [len(mel_batch), mel_batch.shape[1], mel_batch.shape[2], 1])
 
-                yield img_batch, mel_batch, frame_batch, coords_batch
-                img_batch, mel_batch, frame_batch, coords_batch = [], [], [], []
+                yield img_batch, mel_batch
+                img_batch, mel_batch = [], []
 
         if len(img_batch) > 0:
             img_batch, mel_batch = np.asarray(img_batch), np.asarray(mel_batch)
@@ -152,18 +85,13 @@ class Wav2LipInference:
             img_batch = np.concatenate((img_masked, img_batch), axis=3) / 255.
             mel_batch = np.reshape(mel_batch, [len(mel_batch), mel_batch.shape[1], mel_batch.shape[2], 1])
 
-            yield img_batch, mel_batch, frame_batch, coords_batch
+            yield img_batch, mel_batch
 
     def sharpen_image(self,image, kernel_size=(5, 5), sigma=0.6, amount=1.5, threshold=0):
-        """Return a sharpened version of the image, using an unsharp mask."""
         blurred = cv2.GaussianBlur(image, kernel_size, sigma)
         sharpened = float(amount + 1) * image - float(amount) * blurred
         sharpened = np.maximum(sharpened, np.zeros(sharpened.shape))
         sharpened = np.minimum(sharpened, 255 * np.ones(sharpened.shape))
-        # sharpened = sharpened.round().astype(np.uint8)
-        if threshold > 0:
-            low_contrast_mask = np.absolute(image - blurred) < threshold
-            np.copyto(sharpened, image, where=low_contrast_mask)
         return sharpened
 
     def inference(self,file_id):
@@ -192,16 +120,12 @@ class Wav2LipInference:
         batch_size = self.args['wav2lip_batch_size']
         gen = self.datagen(full_frames.copy(), mel_chunks)
 
-        for i, (img_batch, mel_batch, frames, coords) in enumerate(tqdm(gen,
-                                                                        total=int(np.ceil(
-                                                                            float(len(mel_chunks)) / batch_size)))):
+        for i, (img_batch, mel_batch) in enumerate(tqdm(gen,total=int(np.ceil(float(len(mel_chunks)) / batch_size)))):
             if i == 0:
                 print("Model loaded")
 
-                y1, y2, x1, x2 = coords[0]
-                half = (y2-y1)//2
-                out = cv2.VideoWriter('temp/'+file_id+'.avi', cv2.VideoWriter_fourcc(*'XVID'), fps, (x2-x1,half), isColor=True)
-
+                frame_h, frame_w = img_batch[0].shape[:-1]
+                out = cv2.VideoWriter('temp/'+file_id+'.avi', cv2.VideoWriter_fourcc(*'XVID'), fps, (frame_w,frame_h//2), isColor=True)
 
             img_batch = torch.FloatTensor(np.transpose(img_batch, (0, 3, 1, 2))).to(self.device)
             mel_batch = torch.FloatTensor(np.transpose(mel_batch, (0, 3, 1, 2))).to(self.device)
@@ -211,10 +135,10 @@ class Wav2LipInference:
 
             pred = pred.cpu().numpy().transpose(0, 2, 3, 1) * 255.
 
-            for p, f, c in zip(pred, frames, coords):
+            for p in pred:
                 p = self.sharpen_image(p)
-                p = cv2.resize(p.astype(np.uint8),(x2-x1,y2-y1))
-                p = p[(y2-y1)-half:,]
+                p = cv2.resize(p.astype(np.uint8),(frame_w,frame_h))
+                p = p[frame_h-frame_h//2:,]
                 out.write(p)
 
         out.release()
