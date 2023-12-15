@@ -15,8 +15,6 @@ wget 'https://iiitaphyd-my.sharepoint.com/personal/radrabha_m_research_iiit_ac_i
 # Install ghc package
 pip install https://raw.githubusercontent.com/AwaleSajil/ghc/master/ghc-1.0-py3-none-any.whl
 
-# Download s3fd.pth for face detection
-wget "https://www.adrianbulat.com/downloads/python-fan/s3fd-619a316812.pth" -O "/content/AITalkMateBackend/face_detection/detection/sfd/s3fd.pth"
 pip install ffmpeg-python
 pip install numpy
 pip install opencv-contrib-python
