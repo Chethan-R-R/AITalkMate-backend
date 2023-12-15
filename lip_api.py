@@ -11,11 +11,12 @@ from lip_models import Wav2Lip
 import platform
 
 class Wav2LipInference:
-    def __init__(self, checkpoint_path="checkpoints/wav2lip_gan.pth", static=False, fps=30.0,
-                 face_det_batch_size=16, wav2lip_batch_size=128, resize_factor=2, crop=[0, -1, 0, -1],
+    def __init__(self, checkpoint_path="checkpoints/wav2lip_gan.pth",face = "avatarframe.jpg", static=False, fps=25.0,
+                 face_det_batch_size=16, wav2lip_batch_size=128, resize_factor=1, crop=[0, -1, 0, -1],
                  box=[-1, -1, -1, -1], rotate=False, nosmooth=False):
         self.args = {
             'checkpoint_path': checkpoint_path,
+            'face':[cv2.imread(face)],
             'static': static,
             'fps': fps,
             'face_det_batch_size': face_det_batch_size,
@@ -165,57 +166,13 @@ class Wav2LipInference:
             np.copyto(sharpened, image, where=low_contrast_mask)
         return sharpened
 
-    def inference(self,face,file_id):
-        self.args['face'] = face
-        # self.args['audio'] = audio_file
-        if not os.path.isfile(self.args['face']):
-            raise ValueError('--face argument must be a valid path to video/image file')
-
-        elif self.args['face'].split('.')[1] in ['jpg', 'png', 'jpeg']:
-            full_frames = [cv2.imread(self.args['face'])]
-            fps = self.args['fps']
-
-        else:
-            video_stream = cv2.VideoCapture(self.args['face'])
-            fps = video_stream.get(cv2.CAP_PROP_FPS)
-
-            print('Reading video frames...')
-
-            full_frames = []
-            while 1:
-                still_reading, frame = video_stream.read()
-                if not still_reading:
-                    video_stream.release()
-                    break
-                if self.args['resize_factor'] > 1:
-                    frame = cv2.resize(frame, (frame.shape[1] // self.args['resize_factor'],
-                                               frame.shape[0] // self.args['resize_factor']))
-
-                if self.args['rotate']:
-                    frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
-
-                y1, y2, x1, x2 = self.args['crop']
-                if x2 == -1: x2 = frame.shape[1]
-                if y2 == -1: y2 = frame.shape[0]
-
-                frame = frame[y1:y2, x1:x2]
-
-                full_frames.append(frame)
-
-        print("Number of frames available for inference: " + str(len(full_frames)))
-
-        # if not self.args['audio'].endswith('.wav'):
-        #     print('Extracting raw audio...')
-        #     command = 'ffmpeg -y -i "{}" -acodec pcm_s16le -ar 16000 -ac 1 -strict -2 {}'.format(self.args['audio'], 'temp/temp.wav')
-        #     subprocess.call(command, shell=True)
-        #     self.args['audio'] = 'temp/temp.wav'
+    def inference(self,file_id):
+        full_frames = self.args['face']
+        fps = self.args['fps']
 
         wav = audio.load_wav('temp/'+file_id+'.wav', 16000)
         mel = audio.melspectrogram(wav)
         print(mel.shape)
-
-        if np.isnan(mel.reshape(-1)).sum() > 0:
-            raise ValueError('Mel contains nan! Using a TTS voice? Add a small epsilon noise to the wav file and try again')
 
         mel_chunks = []
         mel_idx_multiplier = 80. / fps
@@ -241,7 +198,6 @@ class Wav2LipInference:
             if i == 0:
                 print("Model loaded")
 
-                frame_h, frame_w = full_frames[0].shape[:-1]
                 y1, y2, x1, x2 = coords[0]
                 half = (y2-y1)//2
                 out = cv2.VideoWriter('temp/'+file_id+'.avi', cv2.VideoWriter_fourcc(*'XVID'), fps, (x2-x1,half), isColor=True)
@@ -266,5 +222,3 @@ class Wav2LipInference:
         command = 'ffmpeg -y -i {} -i {} -strict -2 -q:v 0 {}'.format('temp/'+file_id+'.wav', 'temp/'+file_id+'.avi','results/'+file_id+'.mp4')
 
         subprocess.call(command, shell=platform.system() != 'Windows')
-
-

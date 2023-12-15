@@ -38,7 +38,7 @@ class ChatGenerator:
     def tts(self,text,file_id):
         wav = self.StyleTTS.inference(text, alpha=0.0, beta=1.111, diffusion_steps=15, embedding_scale=0.99)
         audio.save_wav(wav, 'temp/'+file_id+'.wav', 24000)
-        self.LipSync.inference(face="avatarframe.jpg",file_id=file_id)
+        self.LipSync.inference(file_id=file_id)
 
     def generate(self, user_message, model_reply, prompt):
         system_message = "I know you are AI model but while talking to me talk like a sweet friendly english mate susan. I am here to learn english converation make me talk more. please don't generate long responses, only short and sweet responses. Involve me in coversation with you. Figure out by your self what to talk and ask questions"
