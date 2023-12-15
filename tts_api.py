@@ -25,7 +25,6 @@ from utils import *
 from text_utils import TextCleaner
 from Utils.PLBERT.util import load_plbert
 from Modules.diffusion.sampler import DiffusionSampler, ADPM2Sampler, KarrasSchedule
-from Wav2Lip.inference import lipSync
 import audio
 
 class StyleTTS:
@@ -171,14 +170,5 @@ class StyleTTS:
             out = self.model.decoder(asr, F0_pred, N_pred, ref.squeeze().unsqueeze(0))
 
         return out.squeeze().cpu().numpy()[..., :-50]  # weird pulse at the end of the model, need to be fixed later
-
-styletts_obj = StyleTTS()
-
-def tts(text,file_id):
-    wav = styletts_obj.inference(text, alpha=0.0, beta=1.111, diffusion_steps=15, embedding_scale=0.99)
-    audio.save_wav(wav, 'temp/'+file_id+'.wav', 24000)
-    lipSync.inference(face="avatarframe.jpg",file_id=file_id)
-
-
 
 

@@ -7,7 +7,7 @@ import torch
 from tqdm import tqdm
 import audio
 import face_detection
-from Wav2Lip.models import Wav2Lip
+from lip_models import Wav2Lip
 import platform
 
 class Wav2LipInference:
@@ -267,5 +267,4 @@ class Wav2LipInference:
 
         subprocess.call(command, shell=platform.system() != 'Windows')
 
-lipSync = Wav2LipInference(checkpoint_path = "checkpoints/wav2lip_gan.pth")
 
