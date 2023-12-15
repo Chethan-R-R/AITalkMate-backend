@@ -13,7 +13,7 @@ mv StyleTTS2-LibriTTS/Models .
 wget 'https://iiitaphyd-my.sharepoint.com/personal/radrabha_m_research_iiit_ac_in/_layouts/15/download.aspx?share=EdjI7bZlgApMqsVoEUUXpLsBxqXbn5z8VTmoxp55YNDcIA' -O '/content/AITalkMateBackend/checkpoints/wav2lip_gan.pth'
 
 # Install ghc package
-pip install https://raw.githubusercontent.com/AwaleSajil/ghc/master/ghc-1.0-py3-none-any.whl
+# pip install https://raw.githubusercontent.com/AwaleSajil/ghc/master/ghc-1.0-py3-none-any.whl
 
 pip install ffmpeg-python
 pip install numpy

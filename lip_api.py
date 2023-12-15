@@ -1,30 +1,23 @@
 from os import path
 import numpy as np
 import cv2
-import os
 import subprocess
 import torch
 from tqdm import tqdm
 import audio
-import face_detection
 from lip_models import Wav2Lip
 import platform
 
 class Wav2LipInference:
-    def __init__(self, checkpoint_path="checkpoints/wav2lip_gan.pth",face = "avatar.png", static=False, fps=25.0,
-                 face_det_batch_size=16, wav2lip_batch_size=128, resize_factor=1, crop=[0, -1, 0, -1],
-                 box=[-1, -1, -1, -1], rotate=False):
+    def __init__(self, checkpoint_path="checkpoints/wav2lip_gan.pth",face = "avatar.png", fps=25.0,
+                 face_det_batch_size=16, wav2lip_batch_size=128, resize_factor=1):
         self.args = {
             'checkpoint_path': checkpoint_path,
             'face':[cv2.imread(face)],
-            'static': static,
             'fps': fps,
             'face_det_batch_size': face_det_batch_size,
             'wav2lip_batch_size': wav2lip_batch_size,
             'resize_factor': resize_factor,
-            'crop': crop,
-            'box': box,
-            'rotate': rotate,
             'img_size': 96,
         }
 
@@ -125,7 +118,8 @@ class Wav2LipInference:
                 print("Model loaded")
 
                 frame_h, frame_w = img_batch[0].shape[:-1]
-                out = cv2.VideoWriter('temp/'+file_id+'.avi', cv2.VideoWriter_fourcc(*'XVID'), fps, (frame_w,frame_h//2), isColor=True)
+                frame_half = frame_h//2
+                out = cv2.VideoWriter('temp/'+file_id+'.avi', cv2.VideoWriter_fourcc(*'XVID'), fps, (frame_w,frame_half), isColor=True)
 
             img_batch = torch.FloatTensor(np.transpose(img_batch, (0, 3, 1, 2))).to(self.device)
             mel_batch = torch.FloatTensor(np.transpose(mel_batch, (0, 3, 1, 2))).to(self.device)
@@ -138,7 +132,7 @@ class Wav2LipInference:
             for p in pred:
                 p = self.sharpen_image(p)
                 p = cv2.resize(p.astype(np.uint8),(frame_w,frame_h))
-                p = p[frame_h-frame_h//2:,]
+                p = p[frame_h-frame_half:,]
                 out.write(p)
 
         out.release()
