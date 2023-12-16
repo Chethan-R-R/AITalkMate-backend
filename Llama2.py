@@ -1,7 +1,6 @@
 from concurrent.futures import ThreadPoolExecutor
 from threading import Thread
-from transformers import AutoTokenizer, pipeline, logging, TextIteratorStreamer
-from auto_gptq import AutoGPTQForCausalLM
+from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline, TextIteratorStreamer
 import emoji
 import audio
 from tts_api import StyleTTS
@@ -11,27 +10,22 @@ class ChatGenerator:
     def __init__(self,model_name_or_path="TheBloke/Llama-2-7b-Chat-GPTQ", model_basename="model", use_triton=False):
         self.tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, use_fast=True)
         self.streamer = TextIteratorStreamer(self.tokenizer)
-        self.model = AutoGPTQForCausalLM.from_quantized(
-            model_name_or_path,
-            model_basename=model_basename,
-            use_safetensors=True,
-            trust_remote_code=True,
-            device="cuda:0",
-            use_triton=use_triton,
-            quantize_config=None
-        )
-        logging.set_verbosity(logging.CRITICAL)
+        self.model = AutoModelForCausalLM.from_pretrained(model_name_or_path,
+                        device_map="auto",
+                        trust_remote_code=False,
+                        revision="main")
         self.pipe = pipeline(
-            "text-generation",
-            model=self.model,
-            tokenizer=self.tokenizer,
-            streamer=self.streamer,
-            max_new_tokens=512,
-            do_sample=True,
-            temperature=0.1,
-            top_p=0.95,
-            repetition_penalty=1.15
-        )
+                "text-generation",
+                model=self.model,
+                tokenizer=self.tokenizer,
+                streamer=self.streamer,
+                max_new_tokens=512,
+                do_sample=True,
+                temperature=0.7,
+                top_p=0.95,
+                top_k=40,
+                repetition_penalty=1.1
+            )
         self.StyleTTS = StyleTTS()
         self.LipSync = Wav2LipInference()
 
