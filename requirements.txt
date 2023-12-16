@@ -12,7 +12,6 @@ pyyaml
 nltk
 matplotlib
 accelerate
-transformers
 phonemizer
 einops
 einops-exts
