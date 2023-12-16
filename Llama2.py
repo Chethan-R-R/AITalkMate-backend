@@ -30,7 +30,7 @@ class ChatGenerator:
         self.LipSync = Wav2LipInference()
 
     def tts(self,text,file_id):
-        wav = self.StyleTTS.inference(text, alpha=0.0, beta=1.111, diffusion_steps=15, embedding_scale=0.99)
+        wav = self.StyleTTS.inference(text, alpha=0.01, beta=1.23, diffusion_steps=15, embedding_scale=0.99)
         audio.save_wav(wav, 'temp/'+file_id+'.wav', 24000)
         self.LipSync.inference(file_id=file_id)
 
