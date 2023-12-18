@@ -13,7 +13,7 @@ class Wav2LipInference:
                  face_det_batch_size=16, wav2lip_batch_size=128, resize_factor=1):
         self.args = {
             'checkpoint_path': checkpoint_path,
-            'face':[cv2.imread(face)],
+            'face':cv2.imread(face),
             'fps': fps,
             'face_det_batch_size': face_det_batch_size,
             'wav2lip_batch_size': wav2lip_batch_size,
@@ -24,6 +24,8 @@ class Wav2LipInference:
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         print('Using {} for inference.'.format(self.device))
         self.model = self.load_model(checkpoint_path)
+        self.frame_h, self.frame_w = self.args['face'].shape[:-1]
+        self.frame_half = self.frame_h//2
 
     def load_model(self, path):
         model = Wav2Lip()
@@ -87,7 +89,7 @@ class Wav2LipInference:
         return sharpened
 
     def inference(self,file_id):
-        full_frames = self.args['face']
+        full_frames = [self.args['face']]
         fps = self.args['fps']
 
         wav = audio.load_wav('temp/'+file_id+'.wav', 16000)
@@ -116,9 +118,7 @@ class Wav2LipInference:
             if i == 0:
                 print("Model loaded")
 
-                frame_h, frame_w = self.args['face'].shape[:-1]
-                frame_half = frame_h//2
-                out = cv2.VideoWriter('temp/'+file_id+'.avi', cv2.VideoWriter_fourcc(*'XVID'), fps, (frame_w,frame_half), isColor=True)
+                out = cv2.VideoWriter('temp/'+file_id+'.avi', cv2.VideoWriter_fourcc(*'XVID'), fps, (self.frame_w,self.frame_half), isColor=True)
 
             img_batch = torch.FloatTensor(np.transpose(img_batch, (0, 3, 1, 2))).to(self.device)
             mel_batch = torch.FloatTensor(np.transpose(mel_batch, (0, 3, 1, 2))).to(self.device)
@@ -130,8 +130,8 @@ class Wav2LipInference:
 
             for p in pred:
                 p = self.sharpen_image(p)
-                p = cv2.resize(p.astype(np.uint8),(frame_w,frame_h))
-                p = p[frame_h-frame_half:,]
+                p = cv2.resize(p.astype(np.uint8),(self.frame_w,self.frame_h))
+                p = p[self.frame_h-self.frame_half:,]
                 out.write(p)
 
         out.release()
