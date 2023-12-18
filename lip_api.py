@@ -23,7 +23,6 @@ class Wav2LipInference:
 
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         print('Using {} for inference.'.format(self.device))
-
         self.model = self.load_model(checkpoint_path)
 
     def load_model(self, path):
@@ -117,7 +116,7 @@ class Wav2LipInference:
             if i == 0:
                 print("Model loaded")
 
-                frame_h, frame_w = img_batch[0].shape[:-1]
+                frame_h, frame_w = self.args['face'].shape[:-1]
                 frame_half = frame_h//2
                 out = cv2.VideoWriter('temp/'+file_id+'.avi', cv2.VideoWriter_fourcc(*'XVID'), fps, (frame_w,frame_half), isColor=True)
 
