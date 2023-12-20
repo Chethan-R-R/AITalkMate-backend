@@ -169,6 +169,6 @@ class StyleTTS:
 
             out = self.model.decoder(asr, F0_pred, N_pred, ref.squeeze().unsqueeze(0))
 
-        return out.squeeze().cpu().numpy()[..., :-50]  # weird pulse at the end of the model, need to be fixed later
+        return out.squeeze().cpu().numpy()[..., :-50]
 
 

@@ -88,11 +88,17 @@ class Wav2LipInference:
         sharpened = np.minimum(sharpened, 255 * np.ones(sharpened.shape))
         return sharpened
 
-    def inference(self,file_id):
+    async def send_msg(self,file_id,client_socket):
+        with open('generated_files/'+file_id+'.mp4', "rb") as f:
+            file_contents = f.read()
+
+        await client_socket.send(file_contents)
+
+    def inference(self, wav, directory_name, file_id,client_socket):
         full_frames = [self.args['face']]
         fps = self.args['fps']
 
-        wav = audio.load_wav('temp/'+file_id+'.wav', 16000)
+        wav = audio.load_wav(wav, directory_name+'/'+file_id+'.wav', 16000)
         mel = audio.melspectrogram(wav)
         print(mel.shape)
 
@@ -118,7 +124,7 @@ class Wav2LipInference:
             if i == 0:
                 print("Model loaded")
 
-                out = cv2.VideoWriter('temp/'+file_id+'.avi', cv2.VideoWriter_fourcc(*'XVID'), fps, (self.frame_w,self.frame_half), isColor=True)
+                out = cv2.VideoWriter(directory_name+'/'+file_id+'.avi', cv2.VideoWriter_fourcc(*'XVID'), fps, (self.frame_w,self.frame_half), isColor=True)
 
             img_batch = torch.FloatTensor(np.transpose(img_batch, (0, 3, 1, 2))).to(self.device)
             mel_batch = torch.FloatTensor(np.transpose(mel_batch, (0, 3, 1, 2))).to(self.device)
@@ -136,6 +142,7 @@ class Wav2LipInference:
 
         out.release()
 
-        command = 'ffmpeg -y -i {} -i {} -strict -2 -q:v 0 {}'.format('temp/'+file_id+'.wav', 'temp/'+file_id+'.avi','results/'+file_id+'.mp4')
+        command = 'ffmpeg -y -i {} -i {} -strict -2 -q:v 0 {}'.format(directory_name+'/'+file_id+'.wav', directory_name+'/'+file_id+'.avi', directory_name+'/'+file_id+'.mp4')
 
         subprocess.call(command, shell=platform.system() != 'Windows')
+        self.send_msg(file_id,client_socket)

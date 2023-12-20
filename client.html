@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Video</title>
+</head>
+<body>
+    <video id="videoPlayer" style="background: transparent url('flashframe.jpg') no-repeat center center; background-size: contain; width: 160px; height: 90px;"></video>
+
+    <button id="play">Play</button>
+    <script>
+        const socket = new WebSocket('ws://localhost:12345');
+        const videoElement = document.getElementById('videoPlayer');
+        const queue = []
+        socket.addEventListener('message', async (event) => {
+            // Create a Blob from the received binary data
+            const blob = new Blob([event.data], { type: 'video/mp4' });
+
+            // Create an object URL for the Blob
+            const blobUrl = URL.createObjectURL(blob);
+            queue.push(blobUrl)
+            console.log(queue.length)
+            if (queue.length === 1) {
+                playNextVideo();
+            }
+        });
+
+        function playNextVideo(){
+            videoElement.src = queue[0]
+            videoElement.play()
+        }
+        videoElement.addEventListener('ended',()=>{
+            queue.shift()
+            if(queue.length>0){
+                playNextVideo()
+            }
+        })
+        document.getElementById('play').addEventListener('click',()=>{
+            socket.send("hi")
+            playNextVideo();
+        })
+
+    </script>
+</body>
+</html>

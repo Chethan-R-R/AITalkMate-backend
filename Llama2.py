@@ -29,14 +29,14 @@ class ChatGenerator:
         self.StyleTTS = StyleTTS()
         self.LipSync = Wav2LipInference()
 
-    def tts(self,text,file_id):
+    def tts(self,text, directory_name, file_id,client_socket):
         wav = self.StyleTTS.inference(text, alpha=0.01, beta=1.23, diffusion_steps=15, embedding_scale=0.99)
-        audio.save_wav(wav, 'temp/'+file_id+'.wav', 24000)
-        self.LipSync.inference(file_id=file_id)
+        audio.save_wav(wav, directory_name+'/'+file_id+'.wav', 24000)
+        self.LipSync.inference(directory_name=directory_name, file_id=file_id,client_socket=client_socket)
 
-    def generate(self, user_message, model_reply, prompt):
+    def generate(self, prompt, client_socket, directory_name):
         system_message = "I know you are AI model but while talking to me talk like a sweet friendly english mate susan. I am here to learn english converation make me talk more. please don't generate long responses, only short and sweet responses. Involve me in coversation with you. Figure out by your self what to talk and ask questions"
-        prompt_template = f'''<s>[INST] <<SYS>>\n{system_message}\n<</SYS>>\n\n{user_message} [/INST] {model_reply}</s><s>[INST] {prompt} [/INST]'''
+        prompt_template = f'''<s>[INST] <<SYS>>{system_message}<</SYS>>{prompt}'''
         generation_kwargs = dict(text_inputs=prompt_template)
         thread = Thread(target=self.pipe, kwargs=generation_kwargs)
         thread.start()
@@ -58,7 +58,7 @@ class ChatGenerator:
                 new_text = emoji.replace_emoji(new_text, replace='')
                 temp += " " + new_text
                 if temp[-1] == '.' or temp[-1] == '?' or temp[-1] == '!':
-                    executor.submit(self.tts, temp, str(file_id))
+                    executor.submit(self.tts, temp, directory_name, str(file_id), client_socket)
                     file_id+=1
                     temp = ""
 
