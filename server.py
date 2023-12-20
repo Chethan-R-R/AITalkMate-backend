@@ -9,7 +9,7 @@ talkmate = ChatGenerator()
 async def new_client_connected(client_socket, path):
     client_address = str(client_socket.remote_address[1])
     print("New client connected", client_address)
-    directory_name = 'generated_files/' + client_address
+    directory_name = 'generated_files/' + client_address+'/'
     os.makedirs(directory_name, exist_ok=True)
 
     try:

@@ -31,7 +31,7 @@ class ChatGenerator:
 
     def tts(self,text, directory_name, file_id,client_socket):
         wav = self.StyleTTS.inference(text, alpha=0.01, beta=1.23, diffusion_steps=15, embedding_scale=0.99)
-        audio.save_wav(wav, directory_name+'/'+file_id+'.wav', 24000)
+        audio.save_wav(wav, directory_name+file_id+'.wav', 24000)
         self.LipSync.inference(directory_name=directory_name, file_id=file_id,client_socket=client_socket)
 
     def generate(self, prompt, client_socket, directory_name):
@@ -61,5 +61,8 @@ class ChatGenerator:
                     executor.submit(self.tts, temp, directory_name, str(file_id), client_socket)
                     file_id+=1
                     temp = ""
-
+            if temp!="":
+                executor.submit(self.tts, temp+'.', directory_name, str(file_id), client_socket)
+                file_id+=1
+                temp = ""
         print(generated_text)
