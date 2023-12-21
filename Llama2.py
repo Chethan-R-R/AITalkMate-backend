@@ -29,14 +29,42 @@ class ChatGenerator:
         self.StyleTTS = StyleTTS()
         self.LipSync = Wav2LipInference()
 
+    def prompt_encode(self, messages):
+        B_INST, E_INST = "[INST]", "[/INST]"
+        B_SYS, E_SYS = "<<SYS>>\n", "\n<</SYS>>\n\n"
+        BOS, EOS = "<s>", "</s>"
+        DEFAULT_SYSTEM_PROMPT = f"""I know you are AI model but while talking to me talk like a sweet friendly english mate susan. I am here to learn english converation make me talk more. please don't generate long responses, only short and sweet responses. Involve me in coversation with you. Figure out by your self what to talk and ask questions."""
+
+        if messages[0]["role"] != "system":
+            messages = [
+                {
+                    "role": "system",
+                    "content": DEFAULT_SYSTEM_PROMPT,
+                }
+            ] + messages
+        messages = [
+            {
+                "role": messages[1]["role"],
+                "content": B_SYS + messages[0]["content"] + E_SYS + messages[1]["content"],
+            }
+        ] + messages[2:]
+
+        messages_list = [
+            f"{BOS}{B_INST} {(prompt['content']).strip()} {E_INST} {(answer['content']).strip()} {EOS}"
+            for prompt, answer in zip(messages[::2], messages[1::2])
+        ]
+        messages_list.append(f"{BOS}{B_INST} {(messages[-1]['content']).strip()} {E_INST}")
+
+        return "".join(messages_list)
+
     def tts(self,text, directory_name, file_id,client_socket):
         wav = self.StyleTTS.inference(text, alpha=0.01, beta=1.23, diffusion_steps=15, embedding_scale=0.99)
         audio.save_wav(wav, directory_name+file_id+'.wav', 24000)
         self.LipSync.inference(directory_name=directory_name, file_id=file_id,client_socket=client_socket)
 
-    def generate(self, prompt, client_socket, directory_name):
+    def generate(self, prompt_list, client_socket, directory_name):
         system_message = "I know you are AI model but while talking to me talk like a sweet friendly english mate susan. I am here to learn english converation make me talk more. please don't generate long responses, only short and sweet responses. Involve me in coversation with you. Figure out by your self what to talk and ask questions"
-        prompt_template = f'''<s>[INST] <<SYS>>{system_message}<</SYS>>{prompt}'''
+        prompt_template = self.prompt_encode(prompt_list)
         generation_kwargs = dict(text_inputs=prompt_template)
         thread = Thread(target=self.pipe, kwargs=generation_kwargs)
         thread.start()
@@ -61,7 +89,7 @@ class ChatGenerator:
                     executor.submit(self.tts, temp, directory_name, str(file_id), client_socket)
                     file_id+=1
                     temp = ""
-            if temp!="":
+            if temp!="" and temp!=" ":
                 executor.submit(self.tts, temp+'.', directory_name, str(file_id), client_socket)
                 file_id+=1
                 temp = ""
