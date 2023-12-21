@@ -88,10 +88,9 @@ class Wav2LipInference:
         sharpened = np.minimum(sharpened, 255 * np.ones(sharpened.shape))
         return sharpened
 
-    async def send_msg(self,file_id,client_socket):
-        with open('generated_files/'+file_id+'.mp4', "rb") as f:
+    async def send_msg(self,directory_name,file_id,client_socket):
+        with open(directory_name+file_id+'.mp4', "rb") as f:
             file_contents = f.read()
-
         await client_socket.send(file_contents)
 
     def inference(self,directory_name, file_id,client_socket):
@@ -145,4 +144,4 @@ class Wav2LipInference:
         command = 'ffmpeg -y -i {} -i {} -strict -2 -q:v 0 {}'.format(directory_name+file_id+'.wav', directory_name+file_id+'.avi', directory_name+file_id+'.mp4')
 
         subprocess.call(command, shell=platform.system() != 'Windows')
-        # self.send_msg(file_id,client_socket)
+        self.send_msg(directory_name,file_id,client_socket)
