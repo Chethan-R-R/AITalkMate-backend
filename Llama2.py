@@ -35,25 +35,12 @@ class ChatGenerator:
         BOS, EOS = "<s>", "</s>"
         DEFAULT_SYSTEM_PROMPT = f"""I know you are AI model but while talking to me talk like a sweet friendly english mate susan. I am here to learn english converation make me talk more. please don't generate long responses, only short and sweet responses. Involve me in coversation with you. Figure out by your self what to talk and ask questions."""
 
-        if messages[0]["role"] != "system":
-            messages = [
-                {
-                    "role": "system",
-                    "content": DEFAULT_SYSTEM_PROMPT,
-                }
-            ] + messages
-        messages = [
-            {
-                "role": messages[1]["role"],
-                "content": B_SYS + messages[0]["content"] + E_SYS + messages[1]["content"],
-            }
-        ] + messages[2:]
-
+        messages = [ B_SYS + DEFAULT_SYSTEM_PROMPT + E_SYS + messages[0] ] + messages[1:]
         messages_list = [
-            f"{BOS}{B_INST} {(prompt['content']).strip()} {E_INST} {(answer['content']).strip()} {EOS}"
+            f"{BOS}{B_INST} {(prompt).strip()} {E_INST} {(answer).strip()} {EOS}"
             for prompt, answer in zip(messages[::2], messages[1::2])
         ]
-        messages_list.append(f"{BOS}{B_INST} {(messages[-1]['content']).strip()} {E_INST}")
+        messages_list.append(f"{BOS}{B_INST} {(messages[-1]).strip()} {E_INST}")
 
         return "".join(messages_list)
 
