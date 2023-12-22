@@ -7,6 +7,7 @@ from tqdm import tqdm
 import audio
 from lip_models import Wav2Lip
 import platform
+import asyncio
 
 class Wav2LipInference:
     def __init__(self, checkpoint_path="checkpoints/wav2lip_gan.pth",face = "avatar.png", fps=24.0,
@@ -88,10 +89,10 @@ class Wav2LipInference:
         sharpened = np.minimum(sharpened, 255 * np.ones(sharpened.shape))
         return sharpened
 
-    async def send_msg(self,directory_name,file_id,client_socket):
+    def send_msg(self,directory_name,file_id,client_socket):
         with open(directory_name+file_id+'.mp4', "rb") as f:
             file_contents = f.read()
-        await client_socket.send(file_contents)
+        asyncio.run(client_socket.send(file_contents))
 
     def inference(self,directory_name, file_id,client_socket):
         full_frames = [self.args['face']]
