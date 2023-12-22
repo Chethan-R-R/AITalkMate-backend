@@ -22,7 +22,7 @@ async def new_client_connected(client_socket, path):
 
 async def start_server():
     print("Server started")
-    server = await websockets.serve(new_client_connected, 'localhost', 12345)
+    server = await websockets.serve(new_client_connected, '0.0.0.0', 8080)
 
     try:
         await server.wait_closed()
