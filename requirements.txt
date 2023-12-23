@@ -3,10 +3,10 @@ transformers>=4.32.0
 auto-gptq --extra-index-url https://huggingface.github.io/autogptq-index/whl/cu118/
 tiktoken
 emoji
+torch
 SoundFile
 torchaudio
 munch
-torch
 pydub
 pyyaml
 nltk
